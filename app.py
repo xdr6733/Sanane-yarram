@@ -355,7 +355,7 @@ bot_instance = Batuflex()
 def run_bot():
     bot_instance.run()
 
-# Start the bot in a background thread
+# Start the bot in a background thread (bot remains active independently of API requests)
 threading.Thread(target=run_bot, daemon=True).start()
 
 @app.route("/")
@@ -363,5 +363,5 @@ def index():
     return "bot aktif"
 
 if __name__ == "__main__":
-    # For local testing run Flask in debug mode. On Render.com, gunicorn via the Procfile will be used.
+    # For local testing you can use debug mode. When deployed to Render.com Gunicorn will start this app.
     app.run(host="0.0.0.0", port=5000)
