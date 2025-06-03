@@ -1,8 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Fixed token defined as constant:
+import os
+import time
+import json
+import requests
+import telebot
+from telebot import types
+from datetime import datetime, date
+from bs4 import BeautifulSoup
+import io
+from flask import Flask, request, abort
+
+# Fixed token defined as constant
 TOKEN = "7863131130:AAEZDX4nElVLvfzPyXdfQFG_EKivj1o4c4c"
+
+# --- Bot Code (refactored for webhook mode) ---
 
 çıkarşuşarkıyıbatuflex = "\033[35m"
 yatak = "\033[36m"
@@ -11,27 +24,18 @@ dev = "\033[101m"
 batu = "\033[94m"
 hehe = "\033[0m"
 
-import telebot
-import requests
-import json
-from telebot import types
-from datetime import datetime, date
-from bs4 import BeautifulSoup
-import os
-import time
-import io
+# Instantiate TeleBot with fixed token.
+bot = telebot.TeleBot(TOKEN)
 
 print(f"{dev}Dev: @batukurucu{hehe}")
 os.system('clear')
 
-hackerbatu = """⠀⠀⠀⠀⠀⣠⣴⣶⣿⣿⠿⣷⣶⣤⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣴⣶⣷⠿⣿⣿⣶⣦⣀⠀⠀⠀⠀⠀
-[... ASCII Art content omitted for brevity ...]
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣿⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"""
+hackerbatu = """⠀⠀⠀⠀⠀⣠⣴⣶⣿⣿⠿⣷⣶⣤⣄⡀⠀⠀⠀⠀··· (ASCII art omitted for brevity) ···
+"""
 
 class Batuflex:
     def __init__(self):
-        # Now use our fixed token
-        self.batuHeker = telebot.TeleBot(TOKEN)
+        self.batuHeker = bot
         print(f"{batu}{hackerbatu}{hehe}")
         print(f"{hackerhıhı} 🚀 BOT BAŞLADI 🚀 {hehe}")
         self.hekirBatuHekir = {}
@@ -52,7 +56,7 @@ class Batuflex:
             "sms bomber": {"url": "https://prymx.store/apiler/sms.php", "params": ["gsm"], "method": "GET", "ignore_response": True}
         }
         self.RESPONSE_LENGTH_THRESHOLD = 1000
-        self.kardeşimAşkımYatSoySok()
+        self.register_handlers()
 
     def is_subscribed(self, user_id):
         channels = ["@batutool", -1002558059383]
@@ -89,13 +93,7 @@ class Batuflex:
         markup.add(*buttons)
         return markup
 
-    def hekirHıhıSok(self, mesaj):
-        cid = mesaj.chat.id
-        self.hekirBatuHekir[cid] = {}
-        gselam = self.kardeşimAşkımYatSoy()
-        self.batuHeker.send_message(cid, f"👋 {gselam}! 🎉 Sorgu Bot'una hoş geldiniz. Lütfen aşağıdaki menüden bir seçeneğe tıklayın:", reply_markup=self.soylikSelamSok())
-
-    def kardeşimAşkımYatSoySok(self, mesaj=None):
+    def register_handlers(self):
         @self.batuHeker.message_handler(commands=['start'])
         def basla(m):
             user_id = m.from_user.id
@@ -103,7 +101,9 @@ class Batuflex:
             if not self.is_subscribed(user_id):
                 self.send_subscription_keyboard(cid)
                 return
-            self.hekirHıhıSok(m)
+            self.hekirBatuHekir[cid] = {}
+            gselam = self.kardeşimAşkımYatSoy()
+            self.batuHeker.send_message(cid, f"👋 {gselam}! 🎉 Sorgu Bot'una hoş geldiniz. Lütfen aşağıdaki menüden bir seçeneğe tıklayın:", reply_markup=self.soylikSelamSok())
 
         @self.batuHeker.callback_query_handler(func=lambda c: True)
         def callback(c):
@@ -325,25 +325,33 @@ class Batuflex:
         else:
             return "Bilinmiyor"
 
-    def waitForSok(self):
-        while True:
-            try:
-                requests.get("https://www.google.com", timeout=5)
-                break
-            except requests.RequestException:
-                time.sleep(5)
+# Instantiate our bot instance
+batuflex_instance = Batuflex()
 
-    def run(self):
-        while True:
-            try:
-                self.batuHeker.polling(none_stop=True)
-            except Exception as e:
-                print("Internet kopdu, yeniden bağlanılıyor...")
-                self.waitForSok()
-                os.system("clear")
-                print(f"{batu}{hackerbatu}{hehe}")
-                print(f"{hackerhıhı} 🚀 BOT BAŞLADI 🚀 {hehe}")
-                time.sleep(2)
+# --- Flask App for Webhook ---
+app = Flask(__name__)
 
-if __name__ == "__main__":
-    Batuflex().run()
+@app.route('/' + TOKEN, methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.data.decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        batuflex_instance.batuHeker.process_new_updates([update])
+        return '', 200
+    else:
+        abort(403)
+
+@app.route('/')
+def index():
+    return "Bot is running.", 200
+
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    # Set webhook URL from env var WEBHOOK_URL, for example: "https://your-app.onrender.com"
+    WEBHOOK_URL = os.environ.get('WEBHOOK_URL')
+    if WEBHOOK_URL:
+        batuflex_instance.batuHeker.remove_webhook()
+        batuflex_instance.batuHeker.set_webhook(url=WEBHOOK_URL + "/" + TOKEN)
+    else:
+        print("WEBHOOK_URL env var not set, cannot set webhook.")
+    app.run(host='0.0.0.0', port=port)
